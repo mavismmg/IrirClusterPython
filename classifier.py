@@ -5,12 +5,6 @@ import pandas as pd
 
 _dataPath = r'C:/Users/conta/source/repos/PythonClassifierIris/PythonClassifierIris/Data/iris.data'
 
-try:
-    import seaborn
-except ImportError:
-    pass
-
-
 def import_data():
 
     import os
@@ -42,15 +36,17 @@ def get_features_and_labels(frame):
     arr = np.array(frame)
 
     from sklearn.preprocessing import OneHotEncoder
+    from sklearn.compose import ColumnTransformer
 
-    enc = OneHotEncoder(handle_unknown='ignore')
-    enc_df = pd.DataFrame(enc.fit_transform(arr[:, :-1]).toarray())
+    enc = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [4])], 
+                            remainder='passthrough')
 
-    arr = arr.append(enc_df, how='left')
+    arr = np.array(enc.fit_transform(arr))
 
-    print(frame)
+    X, y = arr, arr
 
-    X, y = arr[:, :-1], arr[:, -1]
+    print(X)
+    print(y)
 
     from sklearn.model_selection import train_test_split
 
@@ -74,38 +70,36 @@ def evaluate_classifier(X_train, X_test, y_train, y_test):
     from sklearn.cluster import MeanShift
     from sklearn.cluster import SpectralClustering
 
-    from sklearn.metrics import silhouette_score, adjusted_rand_score
+    from sklearn.metrics import silhouette_score, average_precision_score
+
+    print('X_train: ', X_train, 'X_test: ', X_test, 'y_train', y_train, 'y_test', y_test)
     
-    classifier = KMeans(n_clusters=2, random_state=0)
+    cluster = KMeans(n_clusters=2, random_state=0)
+    cluster.fit(X_train, y_train)
 
-    classifier.fit(X_train, y_train)
-    score = silhouette_score(y_test, classifier.predict(X_test))
+    score = silhouette_score(y_test, cluster.predict(X_test))
+    
+    print(score)
 
-    y_prob = classifier.decision_function(X_test)
-    precision, recall, _ = accuracy_score(y_test, y_prob)
+    yield 'KMeans (Silhoutte_score={:.3f})'.format(score)
 
-    yield 'Linear SVC (F1 score={:.3f})'.format(score), precision, recall
+    cluster = AffinityPropagation(preference=-50, random_state=5)
+    cluster.fit(X_train, y_train)
 
-    classifier = NuSVC(kernel='rbf', nu=0.5, gamma=1e-3)
+    score = silhouette_score(y_test, cluster.predict(X_test))
 
-    classifier.fit(X_train, y_train)
-    score = f1_score(y_test, classifier.predict(X_test))
+    print('\n', score)
 
-    y_prob = classifier.decision_function(X_test)
-    precision, recall, _ = precision_recall_curve(y_test, y_prob)
+    yield 'AffinityPropagation (Silhoutte_score={:.3f})'.format(score)
 
-    yield 'NuSVC (F1 score={:.3f})'.format(score), precision, recall
+    cluster = SpectralClustering(n_clusters=2)
 
+    cluster.fit_predict(X_train, y_train)
+    score = silhouette_score(y_test, cluster.fit_predict(X_test))
 
-    classifier = AdaBoostClassifier(n_estimators=50, learning_rate=1.0, algorithm='SAMME.R')
+    print('\n', score)
 
-    classifier.fit(X_train, y_train)
-    score = f1_score(y_test, classifier.predict(X_test))
-
-    y_prob = classifier.decision_function(X_test)
-    precision, recall, _ = precision_recall_curve(y_test, y_prob)
-
-    yield 'Ada Boost (F1 score={:.3f})'.format(score), precision, recall
+    yield 'SpectralClustering (Silhoutte_score={:.3f})'.format(score)
 
 
 def plot(results):
@@ -136,5 +130,5 @@ if __name__ == '__main__':
     print("Evaluating classifiers")
     results = list(evaluate_classifier(X_train, X_test, y_train, y_test))
 
-    print("Plotting the results")
-    plot(results)
+    #print("Plotting the results")
+    #plot(results)
