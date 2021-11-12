@@ -69,10 +69,42 @@ def evaluate_classifier(X_train, X_test, y_train, y_test):
 
     from sklearn.metrics import silhouette_score, average_precision_score
 
+    from sklearn.preprocessing import OneHotEncoder
+    from sklearn.compose import ColumnTransformer
+
     print('X_train: ', X_train, 'X_test: ', X_test, 'y_train', y_train, 'y_test', y_test)
     
+    data = pd.read_fwf(_dataPath)
+
+    frame = import_data()
+
+    enc = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [4])], 
+                            remainder='passthrough')
+
+    arr = np.array(frame)
+    arr = np.array(enc.fit_transform(arr))
+
+    print('\narr is like: \n\n', arr)
+
+    _arr = arr[:, :3]
+
+    print('\n_arr is like: \n\n', _arr)
+
+    df = pd.DataFrame(frame, columns=['cluster', 'column2', 'column3', 'column4',
+                                           'typef'])
+
+    print(df.head())
+
     cluster = KMeans(n_clusters=2, random_state=0)
     cluster.fit(X_train, y_train)
+    df['cluster'] = cluster.fit_predict(_arr)
+
+    centroids = cluster.cluster_centers_
+    cen_x = [i[0] for i in centroids]
+    cen_y = [i[1] for i in centroids]
+
+    df['cen_x'] = df.cluster.map({0:cen_x[0], 1:cen_x[1], 2:cen_x[2]})
+    df['cen_y'] = df.cluster.map({0:cen_y[0], 1:cen_y[1], 2:cen_y[2]})
 
     score = silhouette_score(y_test, cluster.predict(X_test))
     
@@ -131,9 +163,6 @@ def plot(results):
     for label, score in results:
         plt.plot(score, label=label)
 
-    plt.title('Precision-Recall Curves')
-    plt.xlabel('Precision')
-    plt.ylabel('Recall')
     plt.legend(loc='lower left')
 
     plt.tight_layout()
